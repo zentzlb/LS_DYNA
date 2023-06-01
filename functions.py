@@ -1,3 +1,22 @@
+from lasso.dyna import D3plot, ArrayType, Binout
+import os
+
+
+def get_ab(
+        directory: str = r"C:\Users\Logan.Zentz\OneDrive - University of Virginia\Documents\Sled Test\sims\airbag\videos\drop_vent_d3.0_start1000_term2000_height6.0_blow_v14000_blow_s300_ea1_sim"):
+    """
+    open binout file
+    :param directory: (string)
+    :return: ab (ndarray)
+    """
+
+    path = os.path.join(directory, 'binout0000')
+    binout = Binout(path)
+
+    ab = binout.read('abstat', 'pressure')
+    return ab[:, 3]
+
+
 def get_nextline(text, c: int = 0):
     """
     grab next line of text from string

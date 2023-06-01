@@ -2,8 +2,7 @@ from lasso.dyna import D3plot, ArrayType, Binout
 import os
 
 
-def get_ab(
-        directory: str = r"C:\Users\Logan.Zentz\OneDrive - University of Virginia\Documents\Sled Test\sims\airbag\videos\drop_vent_d3.0_start1000_term2000_height6.0_blow_v14000_blow_s300_ea1_sim"):
+def get_ab(directory: str):
     """
     open binout file
     :param directory: (string)

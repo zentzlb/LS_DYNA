@@ -1,4 +1,5 @@
 from lasso.dyna import D3plot, ArrayType, Binout
+import numpy as np
 import os
 
 
@@ -54,7 +55,7 @@ def open_key(file_path: str):
     return text
 
 
-def get_nodes(text):
+def get_nodes(text: str):
     """
     extract shell elements from string
     :param text: (string)
@@ -97,7 +98,7 @@ def get_shell(text: str):
     return elements
 
 
-def get_part_ids(text):
+def get_part_ids(text: str):
     """
     extract shell elements from string
     :param text: (string)
@@ -159,7 +160,105 @@ def check_node(node: dict, equation: str, tolerance: float):
     return check
 
 
-def make_new_element_set(file_path: str, new_file_path: str, equation: str, tolerance: float = 0.1, pid: int = 1):
+def make_nodes(array: list, dec: int = 4):
+    """
+    Make new node keyword based on numpy array
+    :param array: list of node ids and coordinates (list)
+    :param dec: number of decimal places (int)
+    :return: node keyword
+    """
+    nodes = {}
+    xnodes = {}
+    ynodes = {}
+    znodes = {}
+    for n in array:
+        nid = n[0]
+        x = n[1]
+        y = n[2]
+        z = n[3]
+        node = {'x': x, 'y': y, 'z': z}
+        nodes[f'{nid}'] = node
+        if str(x) not in xnodes:
+            xnodes[str(x)] = set()
+        xnodes[str(x)].add(nid)
+        if str(y) not in ynodes:
+            ynodes[str(y)] = set()
+        ynodes[str(y)].add(nid)
+        if str(z) not in znodes:
+            znodes[str(z)] = set()
+        znodes[str(z)].add(nid)
+
+    text = '*NODE\n'
+    node_list = [
+        f'{int(n[0]):>8}{round(n[1], dec):>16}{round(n[2], dec):>16}{round(n[3], dec):>16}{n[4]:>8}{n[5]:>8}\n' for
+        n in array]
+    text += ''.join(node_list)
+        # text += '*END\n'
+
+    return text, nodes, xnodes, ynodes, znodes
+
+
+def find_nodes(x: str, y: str, z: str, xnodes: dict[str, set], ynodes: dict[str, set], znodes: dict[str, set]):
+    # if x in xnodes and
+    node = xnodes[x].intersection(ynodes[y].intersection(znodes[z]))
+    return node
+
+
+def make_solid(xnodes: dict, ynodes: dict, znodes: dict, pid: int = 1):
+    print('starting')
+    posx = [i for i in xnodes.keys()]
+    posy = [i for i in ynodes.keys()]
+    posz = [i for i in znodes.keys()]
+
+    text = "*ELEMENT_SOLID\n"
+    eid = 1
+
+    solid_dict = {}
+
+    for i in range(len(posx) - 1):
+        print(100 * i / (len(posx) - 1))
+        for j in range(len(posy) - 1):
+            for k in range(len(posz) - 1):
+                x1 = posx[i]
+                x2 = posx[i + 1]
+                y1 = posy[j]
+                y2 = posy[j + 1]
+                z1 = posz[k]
+                z2 = posz[k + 1]
+                n1 = find_nodes(x1, y1, z1, xnodes, ynodes, znodes)
+                n2 = find_nodes(x2, y1, z1, xnodes, ynodes, znodes)
+                n3 = find_nodes(x2, y2, z1, xnodes, ynodes, znodes)
+                n4 = find_nodes(x1, y2, z1, xnodes, ynodes, znodes)
+                n5 = find_nodes(x1, y1, z2, xnodes, ynodes, znodes)
+                n6 = find_nodes(x2, y1, z2, xnodes, ynodes, znodes)
+                n7 = find_nodes(x2, y2, z2, xnodes, ynodes, znodes)
+                n8 = find_nodes(x1, y2, z2, xnodes, ynodes, znodes)
+
+                element = {'pid': pid,
+                           'n1': n1,
+                           'n2': n2,
+                           'n3': n3,
+                           'n4': n4,
+                           'n5': n5,
+                           'n6': n6,
+                           'n7': n7,
+                           'n8': n8}
+
+                solid_dict[str(eid)] = element
+
+                text += f'{eid:>8}{pid:>8}{next(iter(n1)):>8}{next(iter(n2)):>8}{next(iter(n3)):>8}{next(iter(n4)):>8}{next(iter(n5)):>8}{next(iter(n6)):>8}{next(iter(n7)):>8}{next(iter(n8)):>8}\n'
+
+                eid += 1
+
+                # print(text)
+
+    # text += '*END\n'
+
+    return text, solid_dict
+
+
+def make_new_element_set(file_path: str, new_file_path: str, equation: str, tolerance: float = 0.1, pid: int = 1,
+                         save: bool = True):
     """
     create new key file
     :param file_path: path to original key file (string)
@@ -167,6 +266,7 @@ def make_new_element_set(file_path: str, new_file_path: str, equation: str, tole
     :param equation: equation all shell element nodes must satisfy (string)
     :param tolerance: tolerance for nodes satisfying equation (float)
     :param pid: part ID (integer)
+    :param save: save as key file (bool)
     """
     text = open_key(file_path)
     nodes = get_nodes(text)
@@ -181,8 +281,11 @@ def make_new_element_set(file_path: str, new_file_path: str, equation: str, tole
             print(temp)
     newfile_text += '*END\n'
 
-    with open(new_file_path, 'w') as my_text:
-        my_text.write(newfile_text)  # save key file
+    if save:
+        with open(new_file_path, 'w') as my_text:
+            my_text.write(newfile_text)  # save key file
+    else:
+        return newfile_text
 
 
 def make_new_part_set(file_path: str, new_file_path: str, sid: int = 1, name: str = 'All_Parts'):
